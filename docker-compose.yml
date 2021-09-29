@@ -38,7 +38,6 @@ services:
     environment:
       - SCHEMA_REGISTRY_HOST_NAME=schema-registry
       - SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8080
-
       - SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS=PLAINTEXT://broker:19092
       - SCHEMA_REGISTRY_KAFKASTORE_TOPIC=_schemas
       - SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR=1
@@ -46,8 +45,19 @@ services:
     depends_on: [broker]
     logging: { driver: none }
 
+  sqs-queue:
+    container_name: localstack_sqsqueue
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=sqs
+    ports:
+      - '4566:4566'
+
   # NB: run connect locally in stand-alone mode to debug
   connect:
+    depends_on:
+      - broker
+      - sqs-queue
     image: confluentinc/cp-kafka-connect:6.0.1
     ports:
       - 8083:8083
@@ -69,12 +79,12 @@ services:
       - CONNECT_PLUGIN_PATH=/opt/connectors
       - KAFKA_LOG4J_OPTS=-Dlog4j.configuration=file:/etc/log4j.properties
 
-      - AWS_PROFILE
-      - AWS_REGION
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
+      - AWS_PROFILE=dummyprofile
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=dummyaccesskey
+      - AWS_SECRET_ACCESS_KEY=dummysecretaccesskey
     volumes:
       - ~/.aws:/root/.aws
-      - ./target/plugin:/opt/connectors
+      - ./target/kafka-connect-sqs-1.2.0.jar:/opt/connectors/kafka-connect-sqs-1.2.0.jar
       - ./config/log4j.properties:/etc/log4j.properties
     depends_on: [broker]
